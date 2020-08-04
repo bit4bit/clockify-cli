@@ -48,6 +48,10 @@ func (p pagination) AppendToQuery(u url.URL) url.URL {
 	return u
 }
 
+type PaginatedRequest interface {
+	WithPagination(page, size int) PaginatedRequest
+}
+
 // TimeEntryStartEndRequest to get entries by range
 type TimeEntryStartEndRequest struct {
 	Start    DateTime
@@ -58,7 +62,7 @@ type TimeEntryStartEndRequest struct {
 }
 
 // WithPagination add pagination to the TimeEntryStartEndRequest
-func (r TimeEntryStartEndRequest) WithPagination(page, size int) TimeEntryStartEndRequest {
+func (r TimeEntryStartEndRequest) WithPagination(page, size int) PaginatedRequest {
 	r.Pagination = NewPagination(page, size)
 	return r
 }

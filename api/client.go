@@ -178,36 +178,30 @@ func (c *Client) LogRange(p LogRangeParam) ([]dto.TimeEntry, error) {
 
 	c.debugf("Log Filter Params: Start: %s, End: %s", filter.Start, filter.End)
 
-	page := p.Page
-	if p.AllPages {
-		page = 1
-	}
+	var tes []dto.TimeEntry
+	err := c.paginate(
+		"GET",
+		fmt.Sprintf(
+			"v1/workspaces/%s/user/%s/time-entries",
+			p.Workspace,
+			p.UserID,
+		),
+		p.PaginationParam,
+		filter,
+		&tes,
+		func(res interface{}) (int, error) {
+			if res == nil {
+				return 0, nil
+			}
 
-	stop := false
+			tes := res.(*[]dto.TimeEntry)
+			timeEntries = append(timeEntries, *tes...)
+			return len(*tes), nil
+		},
+	)
 
-	for !stop {
-		var tes []dto.TimeEntry
-		r, err := c.NewRequest(
-			"GET",
-			fmt.Sprintf(
-				"v1/workspaces/%s/user/%s/time-entries",
-				p.Workspace,
-				p.UserID,
-			),
-			filter.WithPagination(page, p.PageSize),
-		)
-		if err != nil {
-			return timeEntries, err
-		}
-
-		_, err = c.Do(r, &tes)
-		if err != nil {
-			return timeEntries, err
-		}
-
-		timeEntries = append(timeEntries, tes...)
-		stop = len(tes) == 0 || !p.AllPages
-		page++
+	if err != nil {
+		return timeEntries, err
 	}
 
 	user, err := c.GetUser(p.UserID)
@@ -220,6 +214,40 @@ func (c *Client) LogRange(p LogRangeParam) ([]dto.TimeEntry, error) {
 	}
 
 	return timeEntries, err
+}
+
+func (c *Client) paginate(method, uri string, p PaginationParam, request dto.PaginatedRequest, bodyTempl interface{}, reducer func(interface{}) (int, error)) error {
+	page := p.Page
+	if p.AllPages {
+		page = 1
+	}
+
+	stop := false
+
+	for !stop {
+		r, err := c.NewRequest(
+			method,
+			uri,
+			request.WithPagination(page, p.PageSize),
+		)
+		if err != nil {
+			return err
+		}
+
+		_, err = c.Do(r, bodyTempl)
+		if err != nil {
+			return err
+		}
+
+		count, err := reducer(bodyTempl)
+		if err != nil {
+			return err
+		}
+
+		stop = count == 0 || !p.AllPages
+		page++
+	}
+	return nil
 }
 
 // LogInProgressParam params to query entries
