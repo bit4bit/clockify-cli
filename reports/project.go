@@ -21,13 +21,14 @@ func ProjectPrintQuietly(ws []dto.Project, w io.Writer) error {
 // ProjectPrint will print more details
 func ProjectPrint(ws []dto.Project, w io.Writer) error {
 	tw := tablewriter.NewWriter(w)
-	tw.SetHeader([]string{"ID", "Name"})
+	tw.SetHeader([]string{"ID", "Name", "Client"})
 
 	lines := make([][]string, len(ws))
 	for i, w := range ws {
 		lines[i] = []string{
 			w.ID,
 			w.Name,
+			w.Client.Name,
 		}
 	}
 
